@@ -19,7 +19,7 @@ CATS:     You have no chance to survive make your time.
 | Ачивка | Как |
 |---|---|
 | **Quickdraw** | [Issue #1](../../issues/1) открыто и закрыто за пару секунд. *What happen?* |
-| **Pull Shark** | 16 смёрженных PR. Каждый добавляет одну реплику из великого перевода Zero Wing в [`transmissions/`](transmissions/). |
+| **Pull Shark** | 16 смёрженных PR. Каждый добавляет одну реплику из великого перевода Zero Wing в [`transmissions/`](transmissions/). Остальное до 1024 добивает [workflow](.github/workflows/pull-shark.yml) — по 100 PR в сутки в [`shark/`](shark/). |
 
 ## Почему
 

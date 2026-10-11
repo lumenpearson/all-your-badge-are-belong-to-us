@@ -1,0 +1,105 @@
+name: Pull Shark
+
+# Раз в сутки (или по кнопке) открывает и мёржит пачку PR,
+# пока в репозитории не наберётся 1024 смёрженных — это золото x4.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Сколько PR смёржить за этот запуск"
+        default: "100"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-shark
+  cancel-in-progress: false
+
+jobs:
+  shark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      # PR должны быть от вашего имени, поэтому нужен личный токен, а не GITHUB_TOKEN
+      GH_TOKEN: ${{ secrets.BADGE_PAT }}
+      GH_REPO: ${{ github.repository }}
+      TARGET: 1024
+      COUNT: ${{ inputs.count || '100' }}
+    steps:
+      - name: Somebody set up us the token
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Добавьте секрет BADGE_PAT (fine-grained PAT: Contents и Pull requests — write)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.BADGE_PAT }}
+          fetch-depth: 1
+
+      - name: Take off every 'ZIG'
+        run: |
+          set -euo pipefail
+          git config user.name "lumenpearson"
+          git config user.email "139921639+lumenpearson@users.noreply.github.com"
+
+          lines=(
+            "In A.D. 2101, war was beginning."
+            "Captain: What happen?"
+            "Mechanic: Somebody set up us the bomb."
+            "Operator: We get signal."
+            "Captain: What!"
+            "Operator: Main screen turn on."
+            "Captain: It's you!!"
+            "CATS: How are you gentlemen!!"
+            "CATS: All your base are belong to us."
+            "CATS: You are on the way to destruction."
+            "Captain: What you say!!"
+            "CATS: You have no chance to survive make your time."
+            "Captain: Take off every 'ZIG'!!"
+            "Captain: Move 'ZIG'."
+            "Captain: For great justice."
+          )
+
+          merged=$(gh pr list --state merged --limit 5000 --json number --jq length)
+          echo "Уже смёржено: $merged из $TARGET"
+          if [ "$merged" -ge "$TARGET" ]; then
+            echo "Золото x4 уже ваше. For great justice."
+            exit 0
+          fi
+
+          todo=$(( TARGET - merged ))
+          [ "$todo" -gt "$COUNT" ] && todo=$COUNT
+          base=$(git rev-parse HEAD)
+
+          for i in $(seq 1 "$todo"); do
+            k=$(( merged + i ))
+            n=$(printf '%04d' "$k")
+            branch="shark-$n"
+            line="${lines[$(( k % ${#lines[@]} ))]}"
+
+            # Каждый PR добавляет свой файл, так что конфликтов не бывает
+            git checkout -q -B "$branch" "$base"
+            mkdir -p shark
+            printf '%s\n' "$line" > "shark/$n.txt"
+            git add "shark/$n.txt"
+            git commit -q -m "Shark $n: $line"
+            git push -q origin "$branch"
+
+            gh pr create --base main --head "$branch" --title "Shark $n: $line" --body "Automated by the Pull Shark workflow."
+            for attempt in 1 2 3; do
+              gh pr merge "$branch" --merge && break
+              sleep 10
+            done
+            git push -q origin --delete "$branch" || true
+
+            # Не упираемся в лимиты GitHub на создание контента
+            sleep 5
+          done
+
+          echo "Готово: смёржено ещё $todo PR."
