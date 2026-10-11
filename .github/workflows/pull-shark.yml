@@ -42,6 +42,20 @@ jobs:
           token: ${{ secrets.BADGE_PAT }}
           fetch-depth: 1
 
+      - name: We get signal
+        run: |
+          case "$GH_TOKEN" in
+            github_pat_*) echo "Токен: fine-grained" ;;
+            ghp_*)        echo "Токен: classic, scopes: $(gh api -i user | grep -i '^x-oauth-scopes:' | cut -d' ' -f2-)" ;;
+            *)            echo "Токен: неизвестного типа" ;;
+          esac
+          # Пробный push без записи: падает, если у токена нет права на запись
+          if ! git push --dry-run -q origin HEAD:refs/heads/shark-probe; then
+            echo "::error::У BADGE_PAT нет права на запись. Fine-grained: Repository access должен включать этот репозиторий, а Contents стоять на Read and write. Classic: нужен scope public_repo или repo."
+            exit 1
+          fi
+          echo "Main screen turn on: права на запись есть."
+
       - name: Take off every 'ZIG'
         run: |
           set -euo pipefail
